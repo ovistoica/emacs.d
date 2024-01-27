@@ -1,12 +1,5 @@
 ;;; package --- My Emacs config
 
-;;; Commentary:
-
-; The config is mostly focused on Clojure(Script) and React development.
-; ClojureScript support in other IDEs is not ideal so this is my attempt
-; to create the best environment for web development in ClojureScript
-
-
 ;;; Code:
 (setq inhibit-startup-message t)
 
@@ -17,7 +10,7 @@
 
 (menu-bar-mode -1)         ; Disable the menu bar
 
-; Set up the visible bell
+                                        ; Set up the visible bell
 (setq visible-bell t)
 
 ;;; Navigation keys similar to IntelliJ
@@ -39,23 +32,9 @@
 
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 
-;; Initialize package sources
-(require 'package)
-
 (setq package-archives '(("melpa" . "https://melpa.org/packages/")
                          ("org" . "https://orgmode.org/elpa/")
                          ("elpa" . "https://elpa.gnu.org/packages/")))
-
-(package-initialize)
-(unless package-archive-contents
- (package-refresh-contents))
-
-;; Initialize use-package on non-Linux platforms
-(unless (package-installed-p 'use-package)
-   (package-install 'use-package))
-
-(require 'use-package)
-(setq use-package-always-ensure t)
 
 (column-number-mode)
 (global-display-line-numbers-mode t)
@@ -76,7 +55,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(lsp-tailwindcss json-mode smartparens smartparents parinfer-rust-mode emacs-prisma-mode prisma-mode treemacs-magit treemacs-icons-dired treemacs-projectile treemacs-evil evil-nerd-commenter company-box lsp-ivy lsp-treemacs lsp-ui lsp-mode which-key expand-region flycheck-clj-kondo markdown-mode evil-magit counsel-projectile web-mode company tide magit tagedit projectile cider clojure-mode-extra-font-locking paredit clojure-mode evil-collection evil general counsel rainbow-delimiters doom-themes all-the-icons doom-modeline ivy command-log-mode use-package))
+   '(tree-sitter-langs tree-sitter apheleia typescript-mode flycheck lsp-tailwindcss json-mode smartparens smartparents parinfer-rust-mode emacs-prisma-mode prisma-mode treemacs-magit treemacs-icons-dired treemacs-projectile treemacs-evil evil-nerd-commenter company-box lsp-ivy lsp-treemacs lsp-ui lsp-mode which-key expand-region flycheck-clj-kondo markdown-mode evil-magit counsel-projectile web-mode company tide magit tagedit projectile cider clojure-mode-extra-font-locking paredit clojure-mode evil-collection evil general counsel rainbow-delimiters doom-themes all-the-icons doom-modeline ivy command-log-mode use-package))
  '(safe-local-variable-values
    '((eval progn
            (make-variable-buffer-local 'cider-jack-in-nrepl-middlewares)
@@ -199,7 +178,7 @@
 
 ;; is too low 4k considering that the some of the language server responses are in
 ;; 800k - 3M range.
-(setq read-process-output-max (* 1024 1024)) ;; 1mb
+(setq read-process-output-max (* 5 1024 1024)) ;; 1mb
 
 
 (use-package lsp-ui
@@ -220,10 +199,11 @@
 (use-package company
   :after lsp-mode
   :hook (prog-mode . company-mode)
-  :bind (:map company-active-map
-         ("<tab>" . company-complete-selection))
-        (:map lsp-mode-map
-         ("<tab>" . company-indent-or-complete-common))
+  :bind
+  (:map company-active-map
+        ("<tab>" . company-complete-selection))
+  (:map lsp-mode-map
+        ("<tab>" . company-indent-or-complete-common))
   :custom
   (company-minimum-prefix-length 1)
   (company-idle-delay 0.0))
@@ -446,7 +426,7 @@
 (add-hook 'clojure-mode-hook 'lsp-deferred)
 (add-hook 'clojurescript-mode-hook 'lsp-deferred)
 (add-hook 'clojurec-mode-hook 'lsp-deferred)
-  
+
 
 ;; extra syntax highlighting for clojure
 (use-package clojure-mode-extra-font-locking)
@@ -492,17 +472,27 @@
 
 (global-set-key (kbd "C-j") 'lsp-describe-thing-at-point)
 
+
+(use-package tree-sitter-langs
+  :ensure t
+  :after tree-sitter)
+
+
 ;;;; Typescript
 ;;;;
 (use-package typescript-mode
-  :mode "\\.ts\\'"
-  :hook (typescript-mode . lsp-deferred)
+  :after tree-sitter
   :config
-  (progn
-    (setq typescript-indent-level 2)
-    (add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-mode))
-    (add-to-list 'auto-mode-alist '("\\.tsx\\'" . typescript-mode))))
+  ;; we choose this instead of tsx-mode so that eglot can automatically figure out language for server
+  ;; see https://github.com/joaotavora/eglot/issues/624 and https://github.com/joaotavora/eglot#handling-quirky-servers
+  (define-derived-mode typescriptreact-mode typescript-mode
+    "TypeScript TSX")
 
+  ;; use our derived mode for tsx files
+  (add-to-list 'auto-mode-alist '("\\.tsx?\\'" . typescriptreact-mode))
+  ;; by default, typescript-mode is mapped to the treesitter typescript parser
+  ;; use our derived mode to map both .tsx AND .ts -> typescriptreact-mode -> treesitter tsx
+  (add-to-list 'tree-sitter-major-mode-language-alist '(typescriptreact-mode . tsx)))
 
 ;;;; Tailwind
 ;;;;
@@ -518,6 +508,11 @@
 		 clojurescript-mode
 		 clojurex-mode))
       (add-to-list 'lsp-tailwindcss-major-modes m))))
+
+(use-package apheleia
+  :ensure t
+  :config
+  (apheleia-global-mode +1))
 
 
 
